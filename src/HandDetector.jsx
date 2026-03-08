@@ -12,20 +12,13 @@ function isThumbAndIndexExtended(landmarks) {
   const indexTip = landmarks[8];
   const indexPIP = landmarks[6];
 
-  // index finger straight
   const indexExtended = indexTip.y < indexPIP.y;
 
-  // thumb straight (distance check)
   const thumbExtended =
     Math.abs(thumbTip.x - thumbMCP.x) >
     Math.abs(thumbIP.x - thumbMCP.x);
-    // MIDDLE
     const middleFolded = landmarks[12].y > landmarks[10].y;
-
-    // RING
     const ringFolded = landmarks[16].y > landmarks[14].y;
-
-    // PINKY
     const pinkyFolded = landmarks[20].y > landmarks[18].y;
 
   return (
