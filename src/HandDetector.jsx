@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
-import { Hands, HAND_CONNECTIONS } from "@mediapipe/hands";
+import { useEffect, useRef, useState} from "react";
+import { Hands } from "@mediapipe/hands";
 import { Camera } from "@mediapipe/camera_utils";
-import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 
 function isThumbAndIndexExtended(landmarks) {
 
@@ -14,12 +13,11 @@ function isThumbAndIndexExtended(landmarks) {
 
   const indexExtended = indexTip.y < indexPIP.y;
 
-  const thumbExtended =
-    Math.abs(thumbTip.x - thumbMCP.x) >
-    Math.abs(thumbIP.x - thumbMCP.x);
-    const middleFolded = landmarks[12].y > landmarks[10].y;
-    const ringFolded = landmarks[16].y > landmarks[14].y;
-    const pinkyFolded = landmarks[20].y > landmarks[18].y;
+  const thumbExtended = Math.abs(thumbTip.x - thumbMCP.x) > Math.abs(thumbIP.x - thumbMCP.x);
+
+  const middleFolded = landmarks[12].y > landmarks[10].y;
+  const ringFolded = landmarks[16].y > landmarks[14].y;
+  const pinkyFolded = landmarks[20].y > landmarks[18].y;
 
   return (
     thumbExtended &&
@@ -30,9 +28,10 @@ function isThumbAndIndexExtended(landmarks) {
   );
 }
 
-export default function HandDetector() {
+export default function HandDetector({}) {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const [handedness, setHandedness] = useState(null);
+  const lastDetectionTime = useRef(0);
 
   useEffect(() => {
     const hands = new Hands({
@@ -41,54 +40,38 @@ export default function HandDetector() {
     });
 
     hands.setOptions({
-      maxNumHands: 2, // detect both hands
+      maxNumHands: 2,
+      selfieMode: true,
       modelComplexity: 1,
       minDetectionConfidence: 0.7,
       minTrackingConfidence: 0.7,
     });
 
     hands.onResults((results) => {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
+      const now = Date.now();
 
-      ctx.save();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+      if (now - lastDetectionTime.current < 300) return;
 
       if (results.multiHandLandmarks) {
         results.multiHandLandmarks.forEach((landmarks, index) => {
 
-        const handedness = results.multiHandedness[index].label;
+        const detectedHand = results.multiHandedness[index].label;
 
         if (!isThumbAndIndexExtended(landmarks)) {
             return;
         }
 
-        drawConnectors(ctx, landmarks, HAND_CONNECTIONS);
-        drawLandmarks(ctx, landmarks);
-
-         const fingerX = landmarks[8].x;
-
-         if (fingerX < 0.4) {
-            console.log(handedness + " LEFT");
-         } 
-        else if (fingerX > 0.6) {
-         console.log(handedness + " RIGHT");
-        }
-
+        setHandedness(detectedHand);
+        console.log(detectedHand);
+        lastDetectionTime.current = now;
         });
       }
-
-      ctx.restore();
     });
 
     const camera = new Camera(videoRef.current, {
       onFrame: async () => {
         await hands.send({ image: videoRef.current });
       },
-      width: 640,
-      height: 480,
     });
 
     camera.start();
@@ -101,15 +84,7 @@ export default function HandDetector() {
   return (
     <div>
       <video ref={videoRef} style={{ display: "none" }} />
-
-      <canvas
-        ref={canvasRef}
-        width={640}
-        height={480}
-        style={{
-          border: "2px solid black",
-        }}
-      />
+      {handedness}
     </div>
   );
 }
